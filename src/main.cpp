@@ -44,7 +44,7 @@ int main(int argc, char const *argv[]) {
   (void)argv;
 
   // auto ptkstr = " (5 sin(3.1456) +  5 9)*3+5*3+55-0.32-.23+.-4 <= 5 coeff ";
-  auto ptkstr = "a 5b c d e f5f _ w % + - * /  < > = <= >= )( . 2 2.3";
+  auto ptkstr = "a 5.1b c d e f5.2f _ w % + - * /  < > = <= >= )( 2 2.3 .1 0. 7";
   try {
     auto ptk = prs::tokenize(ptkstr);
 
@@ -60,6 +60,16 @@ int main(int argc, char const *argv[]) {
       std::cout << t.type() << "\n";
     }
     std::cout << "\n";
+  } catch (const err::invalid_symbol &e) {
+    std::cerr << e.what() << ": " << e.which() << '\n';
+    std::cerr << ptkstr << '\n';
+    std::cerr << std::setw(e.at() + 1) << '^' << '\n';
+    return 1;
+  } catch (const err::unexpected_symbol &e) {
+    std::cerr << e.what() << " after " << e.which() << '\n';
+    std::cerr << ptkstr << '\n';
+    std::cerr << std::setw(e.at() + 1) << '^' << '\n';
+    return 1;
   } catch (const err::parse_error &e) {
     std::cerr << e.what() << '\n';
     std::cerr << ptkstr << '\n';

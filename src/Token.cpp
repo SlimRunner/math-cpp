@@ -14,9 +14,18 @@ enum class SymType {
   Blank,
   Alpha,
   Digit,
+  DDot,
   Symbol,
   Other,
 };
+
+static std::size_t countChars(const std::string &str, char match) {
+  std::size_t count = 0;
+  for (auto const &chr : str) {
+    count += chr == match;
+  }
+  return count;
+}
 
 static bool isSymbol(char sym) {
   switch (sym) {
@@ -44,8 +53,10 @@ template <class T> static int computeBFV(T enumVal) {
 static SymType classifySymbol(char chr) {
   if (isalpha(chr) || chr == '_') {
     return SymType::Alpha;
-  } else if (isdigit(chr) || chr == '.') {
+  } else if (isdigit(chr)) {
     return SymType::Digit;
+  } else if (chr == '.') {
+    return SymType::DDot;
   } else if (isspace(chr)) {
     return SymType::Blank;
   } else if (isSymbol(chr)) {
@@ -66,6 +77,7 @@ static std::optional<TokenType> classifyToken(char chr) {
   case SymType::Alpha:
     return TokenType::Identifier;
   case SymType::Digit:
+  case SymType::DDot:
     return TokenType::Literal;
   case SymType::Symbol:
     return TokenType::Operator;
@@ -82,6 +94,8 @@ static int getWhiteList(SymType currSym, char chr) {
   case SymType::Alpha:
     return computeBFV(SymType::Alpha) | computeBFV(SymType::Digit);
   case SymType::Digit:
+    return computeBFV(SymType::Digit) | computeBFV(SymType::DDot);
+  case SymType::DDot:
     return computeBFV(SymType::Digit);
   case SymType::Symbol:
     return (chr == '<' || chr == '>' ? computeBFV(SymType::Symbol) : 0);
@@ -97,6 +111,8 @@ static int getWhiteList(SymType currSym, char chr) {
 static int getBlackList(SymType currSym, char chr) {
   (void)chr;
   switch (currSym) {
+  case SymType::DDot:
+    return -1 ^ computeBFV(SymType::Digit);
   case SymType::Digit:
     // return computeBFV(SymType::Alpha);
   case SymType::Symbol:
@@ -143,13 +159,20 @@ std::vector<Token> tokenize(const std::string &exprstr) {
       whiteList = 0;
     }
 
+    // exception for .
+    if (exprstr.at(start) == '.' && currSym == SymType::Digit &&
+        i - start == 1) {
+      whiteList = getWhiteList(currSym, chr);
+      blackList = getBlackList(currSym, chr);
+    }
+
     // not a valid symbol
     if (currSym == SymType::Other) {
-      throw err::parse_error(i);
+      throw err::invalid_symbol(i, chr);
     }
 
     if (filterSymbol(currSym, blackList)) {
-      throw err::parse_error(i);
+      throw err::unexpected_symbol(i, (i > 0 ? exprstr.at(i - 1) : '\0'));
     } else if (!filterSymbol(currSym, whiteList)) {
       const auto ttopt = classifyToken(exprstr.at(start));
 
@@ -159,13 +182,18 @@ std::vector<Token> tokenize(const std::string &exprstr) {
         throw err::parse_error(start);
       }
 
+      if (ttopt.value() == TokenType::Literal &&
+          countChars(output.back().payload(), '.') > 1) {
+        throw err::unexpected_symbol(start, exprstr.at(start));
+      }
+
       while (currSym == SymType::Blank && ++i < exprstr.size()) {
         chr = exprstr.at(i);
         currSym = classifySymbol(chr);
       }
 
       if (currSym == SymType::Other) {
-        throw err::parse_error(i);
+        throw err::invalid_symbol(i, chr);
       }
 
       start = i;
@@ -182,7 +210,13 @@ std::vector<Token> tokenize(const std::string &exprstr) {
     if (!ttopt.has_value()) {
       throw err::parse_error(start);
     }
+
     output.push_back({exprstr.substr(start), ttopt.value()});
+
+    if (ttopt.value() == TokenType::Literal &&
+        countChars(output.back().payload(), '.') > 1) {
+      throw err::unexpected_symbol(start, exprstr.at(start));
+    }
   }
 
   return output;
