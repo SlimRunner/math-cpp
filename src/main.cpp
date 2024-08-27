@@ -43,7 +43,8 @@ int main(int argc, char const *argv[]) {
   (void)argc;
   (void)argv;
 
-  auto ptkstr = " (5 sin(3.1456) +  5 9)*3+5*3+55-0.32-.23+.-4 <= 5 coeff ";
+  // auto ptkstr = " (5 sin(3.1456) +  5 9)*3+5*3+55-0.32-.23+.-4 <= 5 coeff ";
+  auto ptkstr = "a 5b c d e f5f _ w % + - * /  < > = <= >= )( . 2 2.3";
   try {
     auto ptk = prs::tokenize(ptkstr);
 

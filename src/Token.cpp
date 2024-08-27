@@ -46,7 +46,7 @@ static SymType classifySymbol(char chr) {
     return SymType::Alpha;
   } else if (isdigit(chr) || chr == '.') {
     return SymType::Digit;
-  } else if (isblank(chr)) {
+  } else if (isspace(chr)) {
     return SymType::Blank;
   } else if (isSymbol(chr)) {
     return SymType::Symbol;
@@ -98,7 +98,7 @@ static int getBlackList(SymType currSym, char chr) {
   (void)chr;
   switch (currSym) {
   case SymType::Digit:
-    return computeBFV(SymType::Alpha);
+    // return computeBFV(SymType::Alpha);
   case SymType::Symbol:
   case SymType::Alpha:
   case SymType::Blank:
@@ -163,6 +163,11 @@ std::vector<Token> tokenize(const std::string &exprstr) {
         chr = exprstr.at(i);
         currSym = classifySymbol(chr);
       }
+
+      if (currSym == SymType::Other) {
+        throw err::parse_error(i);
+      }
+
       start = i;
       whiteList = getWhiteList(currSym, chr);
       blackList = getBlackList(currSym, chr);
