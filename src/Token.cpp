@@ -124,38 +124,51 @@ std::vector<Token> tokenize(const std::string &exprstr) {
   std::vector<Token> output;
   SymType currSym = classifySymbol(exprstr.front());
   // used to determine if the token can continue to grow
-  int whiteList = getWhiteList(currSym, exprstr.front());
+  int whiteList = -1;
   // used to determine if the token is ill formed
-  int blackList = getBlackList(currSym, exprstr.front());
+  int blackList = 0;
   std::size_t start = 0;
 
-  for (std::size_t i = 0; i < exprstr.size(); ++i) {
+  while (currSym == SymType::Blank && ++start < exprstr.size()) {
+    currSym = classifySymbol(exprstr.at(start));
+  }
+
+  for (std::size_t i = start; i < exprstr.size(); ++i) {
     char chr = exprstr.at(i);
     currSym = classifySymbol(chr);
-    if (currSym == SymType::Symbol && i - start > 1) {
+
+    // exception for <= and >=
+    if (currSym == SymType::Symbol &&
+        (i - start > 1 || (chr != '=' && i - start > 0))) {
       whiteList = 0;
     }
 
+    // not a valid symbol
     if (currSym == SymType::Other) {
       throw err::parse_error(i);
     }
 
-    if (!filterSymbol(currSym, whiteList)) {
+    if (filterSymbol(currSym, blackList)) {
+      throw err::parse_error(i);
+    } else if (!filterSymbol(currSym, whiteList)) {
       const auto ttopt = classifyToken(exprstr.at(start));
-      if (!ttopt.has_value()) {
+
+      if (ttopt.has_value()) {
+        output.push_back({exprstr.substr(start, i - start), ttopt.value()});
+      } else if (currSym != SymType::Blank) {
         throw err::parse_error(start);
       }
-      output.push_back({exprstr.substr(start, i - start), ttopt.value()});
-      while (i < exprstr.size() && currSym == SymType::Blank) {
-        ++i;
+
+      while (currSym == SymType::Blank && ++i < exprstr.size()) {
         chr = exprstr.at(i);
         currSym = classifySymbol(chr);
       }
       start = i;
       whiteList = getWhiteList(currSym, chr);
       blackList = getBlackList(currSym, chr);
-    } else if (filterSymbol(currSym, blackList)) {
-      throw err::parse_error(i);
+    } else if (start == i) {
+      whiteList = getWhiteList(currSym, chr);
+      blackList = getBlackList(currSym, chr);
     }
   }
 
