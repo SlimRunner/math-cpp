@@ -6,6 +6,7 @@
 namespace prs {
 namespace math {
 
+
 enum class CharEnum {
   Blank,
   Number,
@@ -16,9 +17,12 @@ enum class TokenEnum {
   Base = 0, // base should always be 0
   Literal,
   Identifier,
+  Operator,
 };
 
-std::vector<Token<TokenEnum>> tokenize(const std::string &exprstr);
+using TokenList = std::vector<Token<TokenEnum>>;
+
+TokenList tokenize(const std::string &exprstr);
 
 } // namespace math
 } // namespace prs

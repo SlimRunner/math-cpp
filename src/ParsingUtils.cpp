@@ -3,7 +3,8 @@
 #include "Exceptions.hpp"
 #include <optional>
 #include <cstddef> // size_t
-#include <sstream> // size_t
+#include <sstream> // ostringstream
+#include <utility> // move
 
 namespace prs {
 namespace math {
@@ -13,25 +14,26 @@ using CharMap = std::map<char, CharEnum>;
 using MathState = TokenState<TokenEnum, CharEnum>;
 using MathRule = TokenRule<TokenEnum, CharEnum>;
 using StateSet = std::map<TokenEnum, MathState, MathState::TypeSort>;
+using VecString = std::vector<std::string>;
 
-static void genCharSet(CharMap &lut);
+static void genCharSet(CharMap &lut, VecString &ligatures);
 static TokenEnum genStates(StateSet &stateSet);
 
-std::vector<Token<TokenEnum>> tokenize(const std::string &exprstr) {
+TokenList tokenize(const std::string &exprstr) {
   CharMap lut;
   StateSet stateSet;
+  VecString ligs;
 
-  genCharSet(lut);
+  genCharSet(lut, ligs);
   TokenEnum curr = genStates(stateSet);
 
-  std::vector<Token<TokenEnum>> tokens;
+  TokenList tokens;
   TokenEnum prev = TokenEnum::Base;
 
   std::size_t index = 0;
-  std::stringstream tkPayload;
+  std::ostringstream tkPayload;
 
   for (auto const &c : exprstr) {
-    // std::cout << c << ": ";
     if (auto it = lut.find(c); it != lut.cend()) {
       bool isValid = false, isBaseCase = false;
       bool hasChanged = false;
@@ -68,25 +70,29 @@ std::vector<Token<TokenEnum>> tokenize(const std::string &exprstr) {
 
     ++index;
   }
+
   if (auto tail = tkPayload.str(); tail.size() != 0) {
     tokens.push_back({tkPayload.str(), prev, index - tail.size()});
   }
+
   return tokens;
 }
 
-static void genCharSet(CharMap &lut) {
+static void genCharSet(CharMap &lut, VecString &ligatures) {
   CharSet cset = {
     {CharEnum::Blank, {" \t\n\f\v"}},
     {CharEnum::Number, {"1234567890"}},
     {CharEnum::Word, {"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"}},
-    {CharEnum::Symbol, {"_."}},
-    // {CharSet::Symbol, {"+-*/_."}},
+    {CharEnum::Symbol, {"+-*/_.<=>,()%"}},
   };
 
   for (const auto & cs : cset) {
     for (auto const & c: cs) {
       lut.insert({c, cs.type()});
     }
+  }
+  for (const std::string str : {"<=", ">=", "**", "//"}) {
+    ligatures.push_back(str);
   }
 }
 
@@ -100,6 +106,9 @@ static TokenEnum genStates(StateSet & stateSet) {
   }));
   tsBase.addRule(MathRule(TokenEnum::Identifier, [](CharEnum t, char s) {
     return t == CharEnum::Word || s == '_';
+  }));
+  tsBase.addRule(MathRule(TokenEnum::Operator, [](CharEnum t, char s) {
+    return t == CharEnum::Symbol && s != '_' && s != '.';
   }));
 
   MathState tsLiteral(TokenEnum::Literal);
@@ -115,6 +124,9 @@ static TokenEnum genStates(StateSet & stateSet) {
   tsLiteral.addRule(MathRule(TokenEnum::Identifier, [](CharEnum t, char s) {
     return t == CharEnum::Word || s == '_';
   }));
+  tsLiteral.addRule(MathRule(TokenEnum::Operator, [](CharEnum t, char s) {
+    return t == CharEnum::Symbol && s != '_' && s != '.';
+  }));
 
   MathState tsIdent(TokenEnum::Identifier);
   tsIdent.addRule(MathRule(TokenEnum::Base, [](CharEnum t, char) {
@@ -123,10 +135,28 @@ static TokenEnum genStates(StateSet & stateSet) {
   tsIdent.addRule(MathRule(TokenEnum::Identifier, [](CharEnum t, char s) {
     return t == CharEnum::Word || t == CharEnum::Number || s == '_';
   }));
+  tsIdent.addRule(MathRule(TokenEnum::Operator, [](CharEnum t, char s) {
+    return t == CharEnum::Symbol && s != '_' && s != '.';
+  }));
+
+  MathState tsOperator(TokenEnum::Operator);
+  tsOperator.addRule(MathRule(TokenEnum::Base, [](CharEnum t, char) {
+    return t == CharEnum::Blank;
+  }));
+  tsOperator.addRule(MathRule(TokenEnum::Literal, [](CharEnum t, char) {
+    return t == CharEnum::Number;
+  }));
+  tsOperator.addRule(MathRule(TokenEnum::Identifier, [](CharEnum t, char s) {
+    return t == CharEnum::Word || s == '_';
+  }));
+  tsOperator.addRule(MathRule(TokenEnum::Operator, [](CharEnum t, char s) {
+    return t == CharEnum::Symbol && s != '_' && s != '.';
+  }));
 
   stateSet.insert({TokenEnum::Base, tsBase});
   stateSet.insert({TokenEnum::Literal, tsLiteral});
   stateSet.insert({TokenEnum::Identifier, tsIdent});
+  stateSet.insert({TokenEnum::Operator, tsOperator});
 
   return TokenEnum::Base;
 }
