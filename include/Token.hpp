@@ -53,19 +53,25 @@ private:
   const TSet m_target;
   std::size_t m_count;
   const std::size_t m_limit;
+  const bool m_coalescing;
 
 public:
   TokenRule() = delete;
   TokenRule(TSet target, Eval rule)
-      : m_evaluator{rule}, m_target{target}, m_count{0}, m_limit{0} {}
+      : m_evaluator{rule}, m_target{target}, m_count{0}, m_limit{0},
+        m_coalescing{true} {}
   TokenRule(TSet target, Eval rule, std::size_t limit)
-      : m_evaluator{rule}, m_target{target}, m_count{0}, m_limit{limit} {}
+      : m_evaluator{rule}, m_target{target}, m_count{0}, m_limit{limit},
+        m_coalescing{true} {}
+  TokenRule(TSet target, Eval rule, std::size_t limit, bool coalescing)
+      : m_evaluator{rule}, m_target{target}, m_count{0}, m_limit{limit},
+        m_coalescing{coalescing} {}
 
   CSet target() const { return m_target; }
+  
+  bool isSticky() { return m_coalescing; }
 
-  void clearCount() {
-    m_count = 0;
-  }
+  void clearCount() { m_count = 0; }
 
   std::optional<TSet> operator()(CSet type, char sym) {
     if ((m_limit == 0 || m_count < m_limit) && this->m_evaluator(type, sym)) {
@@ -102,7 +108,7 @@ public:
   typename RuleSet::iterator end() const { return m_ruleset.cend(); }
 
   void clearRuleCounts() {
-    for (auto && rule : m_ruleset) {
+    for (auto &&rule : m_ruleset) {
       rule.clearCount();
     }
   }
@@ -135,6 +141,7 @@ public:
       : m_payload{data}, m_type{type}, m_pos{pos} {}
 
   std::string payload() const { return m_payload; }
+  constexpr std::size_t size() const { return m_payload.size(); }
   TSet type() const { return m_type; }
   std::size_t position() const { return m_pos; }
 };

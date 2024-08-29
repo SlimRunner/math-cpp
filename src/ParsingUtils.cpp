@@ -45,7 +45,8 @@ TokenList tokenize(const std::string &exprstr) {
           curr = newState.value();
           isValid = true;
           isBaseCase = curr == TokenEnum::Base;
-          hasChanged = prev != curr;
+          hasChanged = prev != curr || !rule.isSticky();
+          // isNotSticky = !rule.isSticky();
           if (hasChanged) {
             stateSet.at(curr).clearRuleCounts();
           }
@@ -76,45 +77,51 @@ TokenList tokenize(const std::string &exprstr) {
     tokens.push_back({tkPayload.str(), prev, index - tail.size()});
   }
 
+  (void)fixOperators;
   return fixOperators(tokens, ligs);
+  // return tokens;
 }
 
 static TokenList fixOperators(const TokenList &tokens, const VecString &ligs) {
   TokenList output;
   std::ostringstream payload;
 
-  for (auto const & token: tokens) {
-    if (token.type() == TokenEnum::Operator && token.payload().size() > 1) {
-      std::vector<std::size_t> idxs(ligs.size());
-      std::size_t subIdx = 0;
-      for (auto const &op : token.payload()) {
-        (void)op;
-        bool flush = true;
-        for (std::size_t i = 0; i < ligs.size(); ++i) {
-          if (ligs.at(i).at(idxs.at(i)) == op) {
-            idxs.at(i) += 1;
-            idxs.at(i) %= ligs.at(i).size();
-            flush = idxs.at(i) == 0;
-            break;
-          } else {
-            idxs.at(i) = 0;
-          }
-        }
+  (void)ligs;
+  for (std::size_t i = 0, j = 0; i < tokens.size(); ++i) {
+    (void)j;
+    if (tokens.at(i).type() != TokenEnum::Operator) {
+      output.push_back(std::move(tokens.at(i)));
+      continue;
+    }
 
-        payload << op;
-
-        if (flush) {
-          output.push_back({
-            payload.str(),
-            token.type(),
-            token.position() + subIdx
-          });
-          payload.str("");
+    auto foober = tokens.at(i).payload().front();
+    (void)foober;
+    bool matches = false;
+    for (auto const &lig : ligs) {
+      matches = true;
+      payload.str("");
+      j = i;
+      for (auto const &c : lig) {
+        if (j == tokens.size() || tokens.at(j).payload().front() != c ||
+            (j != i &&
+             tokens.at(j).position() - tokens.at(j - 1).position() > 1)) {
+          matches = false;
+          break;
+        } else {
+          payload << c;
         }
-        ++subIdx;
+        ++j;
       }
+      if (matches) {
+        i = j - 1;
+        break;
+      }
+    }
+
+    if (matches) {
+      output.push_back({payload.str(), tokens.at(i).type(), tokens.at(i).position()});
     } else {
-      output.push_back(std::move(token));
+      output.push_back(std::move(tokens.at(i)));
     }
   }
 
@@ -194,7 +201,7 @@ static TokenEnum genStates(StateSet & stateSet) {
   }));
   tsOperator.addRule(MathRule(TokenEnum::Operator, [](CharEnum t, char s) {
     return t == CharEnum::Symbol && s != '_' && s != '.';
-  }));
+  }, 0, false));
 
   stateSet.insert({TokenEnum::Base, tsBase});
   stateSet.insert({TokenEnum::Literal, tsLiteral});

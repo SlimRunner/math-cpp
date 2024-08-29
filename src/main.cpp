@@ -8,11 +8,12 @@ int main(int argc, char const *argv[]) {
   (void)argc;
   (void)argv;
 
-  auto str = " (5 sin(3.1456) +  5 9)*3+5*3+55-0.32-0.23+-4 <= 5 coeff ";
-  // auto str = "a 5.1b c d e f 5.2f _ w % + - * /  < > = <= >= )( 2 2.3 0.1 0.7";
+  // auto str = " (5 sin(3.1456) +  5 9)*3+5*3+55-0.32-0.23+-4 <= 5 coeff ";
+  auto str = "a 5.1b c d e f 5.2f _ w % + - * /  < > = <= >= )( 2 2.3 0.1 0.7";
   // auto str = "1.265 5.2_a5a 456asd12 ";
   // auto str = "1.265+ 56*52+awe+0.* 5.2_a5a 456asd12 ";
-  // auto str = "+1 ++-() ----<=<= ** <= 5//-3";
+  // auto str = "+1 ++-() ----<=< = ** >= 5//-3";
+  // auto str = "<=>=**// //(**) *+ <- >- -/-";
   std::vector<prs::Token<prs::math::TokenEnum>> tokens;
   try {
     tokens = prs::math::tokenize(str);
