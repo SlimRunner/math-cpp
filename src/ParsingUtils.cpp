@@ -16,6 +16,7 @@ using MathRule = TokenRule<TokenEnum, CharEnum>;
 using StateSet = std::map<TokenEnum, MathState, MathState::TypeSort>;
 using VecString = std::vector<std::string>;
 
+static TokenList fixOperators(const TokenList &tokens, const VecString &ligs);
 static void genCharSet(CharMap &lut, VecString &ligatures);
 static TokenEnum genStates(StateSet &stateSet);
 
@@ -75,7 +76,49 @@ TokenList tokenize(const std::string &exprstr) {
     tokens.push_back({tkPayload.str(), prev, index - tail.size()});
   }
 
-  return tokens;
+  return fixOperators(tokens, ligs);
+}
+
+static TokenList fixOperators(const TokenList &tokens, const VecString &ligs) {
+  TokenList output;
+  std::ostringstream payload;
+
+  for (auto const & token: tokens) {
+    if (token.type() == TokenEnum::Operator && token.payload().size() > 1) {
+      std::vector<std::size_t> idxs(ligs.size());
+      std::size_t subIdx = 0;
+      for (auto const &op : token.payload()) {
+        (void)op;
+        bool flush = true;
+        for (std::size_t i = 0; i < ligs.size(); ++i) {
+          if (ligs.at(i).at(idxs.at(i)) == op) {
+            idxs.at(i) += 1;
+            idxs.at(i) %= ligs.at(i).size();
+            flush = idxs.at(i) == 0;
+            break;
+          } else {
+            idxs.at(i) = 0;
+          }
+        }
+
+        payload << op;
+
+        if (flush) {
+          output.push_back({
+            payload.str(),
+            token.type(),
+            token.position() + subIdx
+          });
+          payload.str("");
+        }
+        ++subIdx;
+      }
+    } else {
+      output.push_back(std::move(token));
+    }
+  }
+
+  return output;
 }
 
 static void genCharSet(CharMap &lut, VecString &ligatures) {
