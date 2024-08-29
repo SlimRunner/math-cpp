@@ -43,6 +43,9 @@ std::vector<Token<TokenEnum>> tokenize(const std::string &exprstr) {
           isValid = true;
           isBaseCase = curr == TokenEnum::Base;
           hasChanged = prev != curr;
+          if (hasChanged) {
+            stateSet.at(curr).clearRuleCounts();
+          }
           break;
         }
       }
@@ -50,9 +53,8 @@ std::vector<Token<TokenEnum>> tokenize(const std::string &exprstr) {
       if (!isValid) {
         throw err::unexpected_symbol(index, c);
       }
-      if (hasChanged && isBaseCase) {
-        auto pl = tkPayload.str();
-        tokens.push_back({pl, prev, index - pl.size()});
+      if (auto str = tkPayload.str(); hasChanged && str.size() > 0) {
+        tokens.push_back({str, prev, index - str.size()});
         tkPayload.str("");
       }
       if (!isBaseCase) {

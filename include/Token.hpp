@@ -63,6 +63,10 @@ public:
 
   CSet target() const { return m_target; }
 
+  void clearCount() {
+    m_count = 0;
+  }
+
   std::optional<TSet> operator()(CSet type, char sym) {
     if ((m_limit == 0 || m_count < m_limit) && this->m_evaluator(type, sym)) {
       ++m_count;
@@ -96,6 +100,12 @@ public:
   typename RuleSet::iterator begin() const { return m_ruleset.cbegin(); }
 
   typename RuleSet::iterator end() const { return m_ruleset.cend(); }
+
+  void clearRuleCounts() {
+    for (auto && rule : m_ruleset) {
+      rule.clearCount();
+    }
+  }
 
   struct TypeSort {
     bool operator()(const TokenState<TSet, CSet> &lhs,
