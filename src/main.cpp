@@ -1,83 +1,28 @@
 #include "Exceptions.hpp"
-#include "Interfaces.hpp"
-#include "Token.hpp"
-#include <iomanip>
+#include "ParsingUtils.hpp"
 #include <iostream>
-#include <string>
-#include <string_view>
-#include <variant>
+#include <iomanip>
 #include <algorithm>
-
-class Foo : public Arithmetic<int, Foo>, public Divisible<int, Foo> {
-private:
-  int a;
-
-public:
-  Foo(int v) : a{v} {}
-  int operator+(Foo rhs) { return a + rhs.a; }
-  int operator-(Foo rhs) { return a - rhs.a; }
-  int operator-() { return -a; }
-  int operator*(Foo rhs) { return a * rhs.a; }
-  int operator/(Foo rhs) { return a / rhs.a; }
-};
-
-std::ostream &operator<<(std::ostream &ostr, prs::TokenType rhs) {
-  using namespace prs;
-  switch (rhs) {
-  case TokenType::Literal:
-    ostr << "Literal";
-    break;
-  case TokenType::Operator:
-    ostr << "Operator";
-    break;
-  case TokenType::Identifier:
-    ostr << "Identifier";
-    break;
-  default:
-    break;
-  }
-  return ostr;
-}
 
 int main(int argc, char const *argv[]) {
   (void)argc;
   (void)argv;
+  
+  // auto str = " (5 sin(3.1456) +  5 9)*3+5*3+55-0.32-.23+.-4 <= 5 coeff ";
+  // auto str = "a 5.1b c d e f5.2f _ w % + - * /  < > = <= >= )( 2 2.3 .1 0. 7";
+  std::string str = " 1.265 _5a 456asd12 ";
+  auto tokens = prs::math::tokenize(str);
 
-  // auto ptkstr = " (5 sin(3.1456) +  5 9)*3+5*3+55-0.32-.23+.-4 <= 5 coeff ";
-  auto ptkstr = "a 5.1b c d e f5.2f _ w % + - * /  < > = <= >= )( 2 2.3 .1 0. 7";
-  try {
-    auto ptk = prs::tokenize(ptkstr);
+  std::size_t colsize = 0;    
+  for (auto const &word : tokens) {
+    colsize = std::max(colsize, word.payload().size() + 2);
+  }
 
-    std::size_t colsize = 0;    
-    for (auto const &t : ptk) {
-      colsize = std::max(colsize, t.payload().size() + 2);
-    }
-
-    std::cout << ptkstr << "\n";
-    for (auto const &t : ptk) {
-      std::cout << std::setw(colsize + 1) << std::left;
-      std::cout << "'" + t.payload() + "'" ;
-      std::cout << t.type() << "\n";
-    }
-    std::cout << "\n";
-  } catch (const err::invalid_symbol &e) {
-    std::cerr << e.what() << ": " << e.which() << '\n';
-    std::cerr << ptkstr << '\n';
-    std::cerr << std::setw(e.at() + 1) << '^' << '\n';
-    return 1;
-  } catch (const err::unexpected_symbol &e) {
-    std::cerr << e.what() << " after " << e.which() << '\n';
-    std::cerr << ptkstr << '\n';
-    std::cerr << std::setw(e.at() + 1) << '^' << '\n';
-    return 1;
-  } catch (const err::parse_error &e) {
-    std::cerr << e.what() << '\n';
-    std::cerr << ptkstr << '\n';
-    std::cerr << std::setw(e.at() + 1) << '^' << '\n';
-    return 1;
-  } catch (const std::exception &e) {
-    std::cerr << e.what() << '\n';
-    return 1;
+  for (auto const &word: tokens) {
+    std::cout << std::setw(colsize + 1) << std::left;
+    std::cout << "'" + word.payload() + "'" ;
+    std::cout << static_cast<int>(word.type()) << "\n";
+    // std::cout << word.position() << "\n";
   }
 
   return 0;
